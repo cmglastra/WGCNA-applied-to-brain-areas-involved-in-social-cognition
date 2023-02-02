@@ -18,7 +18,7 @@ Data were obtained from a previous study by Voineagu et al., publicly available 
 
 
 
-* **3.*WGCNA.Rmd: step-by-step module indentification, characterization and visualization*
+* **3.*WGCNA.Rmd: step-by-step module indentification, characterization and visualization***
 	*  **3.1.** Sample clustering
 	* **3.2.** Load external data (condition status and brain region) into sample dendrogram
 	* **3.3.** Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
