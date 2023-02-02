@@ -19,9 +19,9 @@ SCRIPTS
 
 
 3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization
-4. 	3.1. Sammple clustering
-	3.2. Load external data (condition status and brain region) into sample dendrogram
-	3.3. Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
+   3.1. Sammple clustering
+   3.2. Load external data (condition status and brain region) into sample dendrogram
+   3.3. Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
 	3.4. Module construction
 		3.4.1. Adjacency, TOM and dissTOM calculation from datExpr.
 		3.4.2. Module definition by gene hierarchical clustering + Dynamic tree cut and close module merging according to Module Eigengene dissimilarity
