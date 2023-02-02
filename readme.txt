@@ -30,13 +30,13 @@ Data were obtained from a previous study by Voineagu et al., publicly available 
 	* **3.6.** Module-trait relationship and plotting in labelled heatmap
 	* **3.7.** Module significance to autism and plotting in barplot. Module significance is calculated as average gene significance of all genes in the module.
 	* **3.8.** Selection of data for Functional enrichment analysis: relevant modules and DEGs
-		* **3.8.a.** Selection of gene IDs of relevant modules to be uploaded to DAVID database
-		* **3.8.b.** Plot GO enrichment for relevant modules
+		* **3.8.1.** Selection of gene IDs of relevant modules to be uploaded to DAVID database
+		* **3.8.2.** Plot GO enrichment for relevant modules
 			- Orange
 			- Lightcyan
 			- Darkturquoise
 			- Darkgrey
 			- Darkgreen
 			- Black
-		* **3.8.c.** Plot GO enrichment for DEGs.
+		* **3.8.3.** Plot GO enrichment for DEGs.
 	* **3.9.** Network visualization in VisANT for Orange and Lightcyan. Top 20 connected nodes were selected, with a Topological Overlap Threshold of 0.1
