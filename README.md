@@ -1,7 +1,7 @@
 TFG_Carmen Martinez
 
 This repository contains the scripts and data that were used during the development of a Weighted Gene Co-expression Network Analysis on brain-expressed genes. This study was the main topic of a Bachelor’s thesis (TFG) in Biotechnology by the student Carmen Martínez.
-The analysis was supported by reference materials on WGCNA created by Zhang, Langfelder and Horvath.
+The analysis was supported by reference materials on WGCNA created by Zhang, Langfelder and Horvath. All of it is conducted in R, and mostly based in the WGCNA package, together with packages GEOquery, limma and ggplot for graphics.
 
 DATA
 Clean data (allData and datExpr).RData: data file containing gene expression data (datExpr), already pre-processed, and extra gene data (gene symbol, ILMN probe ID, GeneBank Accession Number, GO terms, etc) phenoData_binarized.RData: contains data frames of binarized traits for posterior analysis, both annotated with text labels (binarized_phenoData1) and without text (binarized_phenoData)
@@ -17,11 +17,10 @@ SCRIPTS
 	2C. Graphic representation of DEGs in volcano plots.
 
 
-3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization
 
-	3.1. Sample clustering
-	3.2. Load external data (condition status and brain region) into sample dendrogram
-	3.3. Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
+3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization                                                                                      3.1. Sammple clustering
+   3.2. Load external data (condition status and brain region) into sample dendrogram
+   3.3. Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
 	3.4. Module construction
 		3.4.1. Adjacency, TOM and dissTOM calculation from datExpr.
 		3.4.2. Module definition by gene hierarchical clustering + Dynamic tree cut and close module merging according to Module Eigengene dissimilarity
