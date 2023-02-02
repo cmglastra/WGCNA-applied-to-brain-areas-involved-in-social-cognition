@@ -1,0 +1,683 @@
+---
+  title: "Untitled"
+output: html_document
+date: "2023-01-20"
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521")
+options(stringAsFactors=FALSE)
+library(BiocManager)
+library(GEOquery)
+library(Biobase)
+library(WGCNA)
+library(ggplot2)
+```
+
+```{r}
+load(file="Clean data (allData and datExpr) 14Dic.RData")
+load(file="phenoData and num_phenoData.RData")
+load(file="phenoData_binarized.RData")
+```
+
+
+3.1. Sample Clustering
+
+```{r}
+
+#datExpr=cbind(phenoData,t(datExpr))#contiene los datos de expresión + área cerebral y disease status
+
+
+
+#Next we cluster the samples (in contrast to clustering genes that will come later) to see if there are any obvious
+#outliers.
+
+## Plot the sample tree: Open a graphic output window of size 12 by 9 inches
+# The user should change the dimensions if the window is too large or too small.
+
+#matriz de distancias
+dMatrix=as.matrix(dist(datExpr, method = "euclidean", diag=TRUE, upper=TRUE))
+
+dMatrix[(1:5),(1:5)]
+sampleTree=hclust(dist(datExpr,method="euclidean"), method="complete")
+# con el método average (UPGMA): la distancia intercluster es la media de todas las distancias entre todos los puntos de los clusteres (los puntos de un cluster por un lado y los del otro, por otro lado). 
+
+sizeGrWindow(12,9)
+par(cex=0.6) #tamaño de la letra de las sample labels
+par(mar = c(5,7,7,0))
+plot(sampleTree, main = "Sample clustering to detect outliers", sub="", xlab="",
+     cex.lab = 2,
+     cex.axis = 1.5,
+     cex.main = 2
+)
+
+rect.hclust(sampleTree, h=60)
+#abline(h=60, col="blue")
+
+
+clust=cutreeStatic(sampleTree, cutHeight=90, minSize=9)
+table(clust)
+
+#REMOVE SMPLE OUTLIERS AND SAVE THEM IN ANOTHER MATRIX (outSamples)
+
+keepSamples=(clust!=0) #remove the two outlier samples (which belong to cluster 0)
+outSamples=(clust==0)
+
+outDatExpr=datExpr[outSamples,] #save matrix containing outliers
+datExpr=datExpr[keepSamples,] #save only rows below the cut line, and all genes (columns)
+
+dim(outDatExpr)
+dim(datExpr)
+
+printFlush("Matrix containing outliers (first 5 columns):")
+print(outDatExpr[1:nrow(outDatExpr),(1:5)])
+
+nGenes=ncol(datExpr)
+nSamples=nrow(datExpr)
+print(nGenes)
+print(nSamples)
+#The variable datExpr now contains the expression data ready for network analysis.
+
+
+#remove(phenoData[("GSM706394""GSM706410"),])
+outPheno=phenoData[outSamples,]
+phenoData=phenoData[keepSamples,]
+
+
+#check that dimensions of the matrix containing good samples and outliers are right,
+#both for datExpr and phenoData
+dim(outDatExpr)
+dim(datExpr)
+
+printFlush("Matrix containing outliers (first 5 columns):")
+print(outDatExpr[1:nrow(outDatExpr),(1:5)])
+print(outPheno[1:nrow(outPheno),(1:2)])
+
+```
+
+3. 2. Load clinical data into sample dendrogram (visualize how the clinical traits relate to the sample dendrogram)
+
+```{r}
+sampleTree2=hclust(dist(datExpr, "euclidean"), method="average")
+
+#convert traits to color representation
+traitColors=labels2colors(phenoData) #numbers2colors #usar signed =TRUE si hay valores negativos.
+#signed=FALSE,commonLim=FALSE
+#Plot sampleTree2 dendogram with colors
+phenoLabels=c("Disease status","Tissue (Brain Region)")
+par(cex=0.4)
+par(mar = c(0,2,1,0))
+plotDendroAndColors(sampleTree2, traitColors,
+                    cex.axis = 1.2, cex.main = 2,
+                    cex.dendroLabels = 0.9, cex.colorLabels=1.2,
+                    cex.lab=2,
+                    mar=c(2,10,3,1),
+                    #palette.colors(palette="Okabe-Ito"),
+                    groupLabels=(phenoLabels),
+                    dendroLabels = NULL,
+                    main="Sample dendogram and trait heatmap"
+)
+
+
+#In the plot, shown in Fig. 2, white means a low value, red a high value, and grey a missing entry.
+#The last step is to save the relevant expression and trait data for use in the next steps of the tutorial.
+
+```
+
+3.3. Soft thresholding and connectivity
+
+```{r}
+
+enableWGCNAThreads()
+
+#function pickSoftThreshold -> Analysis of network topology, helps users in choosing
+#proper soft-thresholding power
+
+# generate a vector with elements a= entre uno y 10, b entre 12 y 20, numero par)
+
+powers=c(c(1:10), seq(from =12 , to =20, by=2))
+
+#call network topology analysis function (pickSoftThreshold)
+sft=pickSoftThreshold(datExpr,powerVector=powers,verbose = 5)
+
+#plot results:
+sizeGrWindow(9,5)
+par(mfrow=c(1,2),
+    cex.lab=1.2,
+    mar=c(3,6,2,2))
+
+cex1=1.3
+
+# Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     xlab="Soft Threshold (power)", ylab="Scale-Free Topology Model Ft, signed r^2", type="n", cex.main=1.6, cex.ylab=3,
+     main=paste("Scale independence (fig.1a)"));
+text(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+labels=powers,cex=cex1,col="red");
+# this line corresponds to using an R^2 cut-off of h
+abline(h=0.90,col="red")
+
+
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], sft$fitIndices[,5], cex.main=1.6,
+  xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+  main = paste("Mean connectivity (fig. 1b)"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+
+```
+beta = 10 proved to be the most suitable to our analysis.
+
+
+3.4. Module construction
+
+3.4.1. Calculation of adjacency matrix, TOM, and dissTOM
+```{r}
+adjMatrix=adjacency(datExpr,
+                    power=10,
+                    type="signed",
+                    corOptions=list(use="p"))
+TOM2=TOMsimilarity(adjMatrix,
+                   TOMType = "signed",
+                   TOMDenom="min")
+
+dissTOM2=1-TOM2
+```
+
+
+3.4.2. Step-by-step module construction
+```{r}
+#for adj. matrix constructed using beta=10 (more suitable according to our scale-free topologyy and connectivity criteria)
+
+geneTree2=hclust(as.dist(dissTOM2), method="average")
+dynamicMods2=cutreeDynamic(dendro=geneTree2,
+                           distM=dissTOM2,
+                           deepSplit = 2,
+                           pamRespectsDendro = FALSE,
+                           minClusterSize = 30)
+                           
+                           
+table(dynamicMods2)
+dynamicColors2=labels2colors(dynamicMods2)
+
+#Build Eigengene network dendrogram
+MEsList=moduleEigengenes(datExpr,dynamicColors2,
+                         excludeGrey = FALSE,
+                         softPower=10)
+MEs2=MEsList$eigengenes
+
+
+signif(cor(MEs2, use="p"),2)
+dissimME2=(1-t(cor(MEs2, use="p")))/2
+hclustME=hclust(as.dist(dissimME2), method="average")
+
+mergeThres=dynamicMergeCut(n=ncol(datExpr), mergeCor=0.9, Zquantile=2.35)
+par(mfrow=c(2,2))
+sizeGrWindow(8,6)
+plot(hclustME,
+     main="Module clustering by dissmilarity\n(1-Pearson correlation coefficient)",
+     cex.main=0.8,
+     cex.lab=1,
+     cex.axis=0.9)
+abline(h=mergeThres,lty="dashed",col="red")
+
+
+mergedMods2=mergeCloseModules(datExpr,
+                              dynamicColors2,
+                              cutHeight = mergeThres)
+mergedMEs2=mergedMods2$newMEs
+mergedColors2=mergedMods2$colors
+table(mergedColors2)
+
+plotDendroAndColors(dendro=geneTree2,
+                    cbind(dynamicColors2,
+                          mergedColors2),
+                    main="dissTOM-based clustering and module colors\nunmerged + merged",
+                    c("Dynamic Tree Cut",
+                      "Dynamic, Merged (h=0.105)"),
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05,
+                    cex.main=1.6,
+                    cex.axis=1.2,
+                    cex.colorLabels = 1,
+                    mar=c(1,9,3,1))
+
+colorOrder = c("grey", standardColors(50));
+#construct numerical labels matching the colors (numbers identify each module)
+moduleLabels2 = match(mergedColors2, colorOrder)-1;
+#The subtraction of 1 in the moduleLabels = match(moduleColors, colorOrder)-1; command is done to adjust the indices of the moduleLabels object so that they match the indexing of the colorOrder vector. The match() function returns the index of the first match of the moduleColors object in the colorOrder vector. However, the indexing of the colorOrder vector starts at 1 (the first color is at position 1, the second color is at position 2, etc), while the indexing of the moduleLabels object should start at 0 (the first module is at position 0, the second module is at position 1, etc). Therefore, subtracting 1 from the indices returned by the match() function is used to shift the indexing of the moduleLabels object by 1, so that the indices match the indexing of the colorOrder vector.
+
+
+```
+
+3.4.3. plot TOM
+```{r}
+dissTOM2=1-TOM2
+plotdissTOM2=dissTOM2^7
+diag(plotdissTOM2)=NA
+sizeGrWindow(12,9)
+TOMplot(plotdissTOM2, geneTree2,mergedColors2, main="Network heatmap plot\nMerged modules, all genes")
+```
+
+
+5.  Module representation in Multidimensional Scaling Plot
+```{r}
+cmd1=cmdscale(as.dist(dissTOM2),2)
+sizeGrWindow(7,6)
+par(mfrow=c(1,1))
+plot(cmd1,
+     col=as.character(mergedColors2), main="MDS plot",
+     xlab="Scaling Dimension 1", ylab="Scaling Dimension 2")
+
+```
+
+
+
+3.6.  MODULE-TRAIT RELATIONSHIP
+```{r}
+mergedMEs=mergedMEs2
+mergedColors2=mergedMods2$colors
+
+
+nGenes=ncol(datExpr)
+nSamples=nrow(datExpr)
+mergedMEs2=orderMEs(mergedMEs2) #Reorder given (eigen-)vectors such that similar ones (as measured by correlation) are next to each other.
+
+traits=c("DISEASE STATUS", "CEREBELLUM", "FRONTAL CORTEX", "TEMPORAL CORTEX")
+  
+moduleTraitCor=cor(mergedMEs, binarized_phenoData1, use="p")
+moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples)#array containing p values
+
+head(moduleTraitCor)
+head(moduleTraitPvalue)
+
+sizeGrWindow(9,12)
+par(mar=c(2,6,2,1))
+# Will display correlations and their p-values
+textMatrix = paste(signif(moduleTraitCor, 2), "\n(",
+signif(moduleTraitPvalue, 1), ")", sep = "");
+dim(textMatrix) = dim(moduleTraitCor)
+#par(mar = c(6, 1, 3, 3))
+
+#display correlation values within a heatmap plot
+
+colnames(mergedMEs2)<-gsub("ME","",colnames(mergedMEs2))
+                      
+labeledHeatmap(Matrix = moduleTraitCor,
+xLabels = traits,
+yLabels = colnames(mergedMEs),
+yColorLabels = TRUE,
+ySymbols = names(mergedMEs2),
+colorLabels = FALSE,
+colors = blueWhiteRed(100),
+textMatrix = textMatrix,
+setStdMargins = FALSE,
+mar=c(2,5,2,1),
+cex.text = 0.6,
+cex.lab.x = 0.9,
+cex.lab.y=1,
+zlim = c(-1,1),
+xLabelsAngle = 45,
+xLabelsPosition = "bottom",
+#legendLabel = "Pearson\ncorrelation",
+main = paste("Module-trait relationships"))
+
+```
+
+3.7. MODULE SIGNIFICANCE  
+Module **significance** to trait (Autism) as average Gene Significance of Genes in the Modules
+
+8a. for ALL GENES, in ALL SAMPLES
+```{r}
+GS=as.numeric(abs(cor(binarized_phenoData1[,1], datExpr, use ="p")))
+ModuleSignificance=tapply(GS, mergedColors2, mean, na.rm=T)
+    
+sizeGrWindow(10,8)
+par(mar=c(7,5,3,1))
+plotModuleSignificance(GS, 
+                       mergedColors2,
+                       boxplot=FALSE,
+                       ylab = "Gene significance",
+                       ylim=c(0,0.4),
+                       cex.axis=1.3,
+                       cex.lab=1.2,
+                       
+                       las = 2,
+                       cex.main=1,
+                       main="Gene Significance as correlation to clinical condition\n")
+                      
+                      #main = "Gene significance for Disease Status across modules")
+
+#MODULE SIGNIFICANCE WITH GGPLOT
+GS2=as.data.frame(GS, mergedColors2)
+#moduleColors=labels2colors(mergedColors2)
+#moduleColors=unique(moduleColors)
+
+ylabels=sort(unique(mergedColors2))
+ylabels=labels2colors(ylabels)
+
+
+
+ggplot(GS2, aes(x=GS, y=mergedColors2, fill=mergedColors2))+
+  geom_boxplot()+
+  ylab("")+
+  xlab("Gene Significance")+
+  scale_fill_manual(values=ylabels)+
+  ggtitle("")+
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.title.x = element_text(size=18))
+
+```
+
+
+
+3.8.Functional enrichment analysis 
+
+
+3.8.a. Selection of gene IDs of relevant modules for GO ENRICHMENT
+```{r}
+modsOI2=c("orange","lightcyan", "darkturquoise", "darkgrey", "black","darkgreen") 
+
+#Extract genes ENTREZ IDs belonging to each module
+
+orangeModIDs=geneData[,3][mergedMods2$colors=="orange"]
+lightcyanModIDs=geneData[,3][mergedMods2$colors=="lightcyan"]
+darkturquoiseModIDs=geneData[,3][mergedMods2$colors=="darkturquoise"]
+darkgreyModIDs=geneData[,3][mergedMods2$colors=="darkgrey"]
+blackModIDs=geneData[,3][mergedMods2$colors=="black"]
+darkgreenModIDs=geneData[,3][mergedMods2$colors=="darkgreen"]
+
+#write the gene IDs lists 
+
+lapply(orangeModIDs, write, "orangeModIDs.txt",append=TRUE)
+lapply(lightcyanModIDs, write, "lightcyanModIDs.txt",append=TRUE,ncolumns=1)
+lapply(darkturquoiseModIDs, write, "darkturquoiseModIDs.txt",append=TRUE)
+lapply(darkgreyModIDs, write, "darkgreyModIDs.txt",append=TRUE)
+lapply(magentaModIDs, write, "magentaModIDs.txt",append=TRUE)
+lapply(darkgreenModIDs, write, "darkgreenModIDs.txt",append=TRUE)
+lapply(blackModIDs, write, "blackModIDs.txt",append=TRUE)
+
+```
+
+
+3.8.b. Plot GO enrichment from data obtained in DAVID
+
+ORANGE
+```{r}
+GO_orange=read.table("FunAnnotGOBP_orangeModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_orange$Term<-gsub("GO:\\d{7}~","",GO_orange$Term)
+top5_orange=as.data.frame(head(GO_orange,6))
+p_top5_orange<-ggplot(data=top5_orange,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,7)+
+  geom_bar(stat="identity" ,position="stack")+
+ geom_text(aes(label=paste(round((Count/List.Total*100),digits=2),"%"),
+               x = Term, y = -log10(PValue)),
+            #position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            #position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(PValue)")+
+  ggtitle("GO Enrichment for ORANGE module")+
+  scale_fill_gradient(low="blue",high="red")
+plot(p_top5_orange)
+```
+
+LIGHTCYAN
+```{r}
+GO_lightcyan=read.table("FunAnnotGOBP_lightcyanModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_lightcyan$Term<-gsub("GO:\\d{7}~","",GO_lightcyan$Term)
+top5_lightcyan=as.data.frame(head(GO_lightcyan,6))
+p_top5_lightcyan<-ggplot(data=top5_lightcyan,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,7)+
+  geom_bar(stat="identity" ,position="stack")+
+ geom_text(aes(label=paste(round((Count/List.Total*100),digits=2),"%"),
+               x = Term, y = -log10(PValue)),
+            #position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            #position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(PValue)")+
+  ggtitle("GO Enrichment for LIGHTCYAN module")+
+  
+  scale_fill_gradient(low="blue",high="red")
+plot(p_top5_lightcyan)
+```
+
+
+DARKTURQUOISE
+```{r}
+GO_darkturquoise=read.table("FunAnnotGOBP_darkturquoiseModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_darkturquoise$Term<-gsub("GO:\\d{7}~","",GO_darkturquoise$Term)
+top5_darkturquoise=as.data.frame(head(GO_darkturquoise,10))
+p_top5_darkturquoise<-ggplot(data=top5_darkturquoise,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,7)+
+  geom_bar(stat="identity" ,position="stack")+
+ geom_text(aes(label=paste(round((Count/List.Total*100),digits=2),"%"),
+               x = Term, y = -log10(PValue)),
+            position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            #position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(PValue)")+
+  
+  ggtitle("GO Enrichment for DARKTURQUOISE module")+
+  scale_fill_gradient(low="blue",high="red")
+plot(p_top5_darkturquoise)
+
+```
+
+DARKGREY
+```{r}
+GO_darkgrey=read.table("FunAnnotGOBP_darkgreyModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_darkgrey$Term<-gsub("GO:\\d{7}~","",GO_darkgrey$Term)
+top5_darkgrey=as.data.frame(head(GO_darkgrey,6))
+p_top5_darkgrey<-ggplot(data=top5_darkgrey,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,7)+
+  geom_bar(stat="identity" ,position="stack")+
+ geom_text(aes(label=paste(round((Count/List.Total*100),digits=2),"%"),
+               x = Term, y = -log10(PValue)),
+            position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            #position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(PValue)")+
+  
+  ggtitle("GO Enrichment for DARKGREY module")+
+  scale_fill_gradient(low="blue",high="red")
+plot(p_top5_darkgrey)
+
+
+```
+
+
+DARKGREEN
+```{r}
+GO_darkgreen=read.table("FunAnnotGOBP_darkgreenModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_darkgreen$Term<-gsub("GO:\\d{7}~","",GO_darkgreen$Term)
+top5_darkgreen=as.data.frame(head(GO_darkgreen,10))
+p_top5_darkgreen<-ggplot(data=top5_darkgreen,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,7)+
+  geom_bar(stat="identity" ,position="stack")+
+  geom_text(aes(label=paste(round((Count/List.Total*100),digits=2),"%"), #round(a, digits = 2)
+                x = Term, y = -log10(PValue)),
+            position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            #position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(PValue)")+
+  
+  ggtitle("GO Enrichment for DARKGREEN module")+
+  scale_fill_gradient(low="blue",high="red")
+plot(p_top5_darkgreen)
+
+```
+
+BLACK
+```{r}
+GO_black=read.table("FunAnnotGOBP_blackModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_black$Term<-gsub("GO:\\d{7}~","",GO_black$Term)
+top5_black=as.data.frame(head(GO_black,10))
+p_top5_black<-ggplot(data=top5_black,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,10)+
+  
+  geom_bar(stat="identity", position="stack")+
+  geom_text(aes(label=paste(round((Count/List.Total*100),digits=2),"%"),
+                x = Term, y = -log10(PValue)),
+            #Position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            #position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(PValue)")+
+  
+  ggtitle("GO Enrichment for BLACK module")+
+  scale_fill_gradient(low="blue",high="red")
+plot(p_top5_black)
+
+```
+
+
+3.8.c. Plot GO enrichment for DEGs
+```{r}
+GO_DEGs=read.table("FunAnnotGOBP_DEGsModIDs.txt", header=TRUE, sep="\t")
+#remove the GO:XXXXXXX from the beginning of the Term
+GO_DEGs$Term<-gsub("GO:\\d{7}~","",GO_DEGs$Term)
+top10_DEGs=as.data.frame(head(GO_DEGs,10))
+
+ 
+p_top10_DEGs<-ggplot(data=top10_DEGs,
+       aes(x=reorder(Term,-log10(PValue)),
+           y=(-log10(PValue)),
+           fill = -log10(PValue)))+
+  ylim(0,7)+
+  geom_bar(stat="identity" ,position="dodge")+
+  geom_text(aes(label=Count,
+                x = Term, y = -log10(PValue)),
+            #position="stack",
+            #position_fill(vjust=0.5,reverse=FALSE))+
+            position = position_dodge(width = 1.5), 
+            vjust = 0.5, hjust=-0.6) +
+  coord_flip()+
+  xlab("")+
+  ylab("-log10(pvalue)")+
+  ggtitle("GO Enrichment for DEGs in Autistic Temporal Cortex")+
+  scale_fill_gradient(low="blue",high="red")
+  
+plot(p_top10_DEGs)  
+  
+```
+
+
+3.9. Module Visualization
+```{r}
+orangeModIDs0=read.table("orangeModIDs.txt", header=FALSE, sep="\t")
+orangeModIDs=orangeModIDs0[,1]
+
+colnames(TOM2)=geneData[,3]
+rownames(TOM2)=colnames(TOM2)
+select_orange=colnames(TOM2)%in%orangeModIDs
+
+TOM_orange=TOM2[select_orange,select_orange]
+
+
+#export to VISANT (TOM)
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521/final files/7. Module visualization ")
+visOrange=exportNetworkToVisANT(TOM_orange,
+                            file="VisInputOrangeTOM.txt",
+                            weighted=TRUE,
+                            threshold=0.1,
+                            probeToGene=NULL)
+
+colnames(adjMatrix)=geneData[,3]
+rownames(adjMatrix)=colnames(adjMatrix)
+
+#export to VISANT (ADJ)
+select_orange=colnames(adjMatrix)%in%orangeModIDs
+adjOrange=adjMatrix[select_orange,select_orange]
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521/final files/7. Module visualization ")
+visOrange=exportNetworkToVisANT(adjOrange,
+                      file="VisInputOrangeAdj.txt",
+                            weighted=TRUE,
+                            threshold=0.5,
+                            probeToGene=NULL)
+
+#restrict to top 20 connections
+#first we have to rename datExpr columns as Gene ID (until now they were named as Gene SYymbol)
+colnames(datExpr)=geneData[,3]
+nTop=20     #numer of top hub genes to be displayed
+IMConn=softConnectivity(datExpr[,colnames(datExpr)%in%orangeModIDs])
+top=(rank(-IMConn)<=nTop)
+visOrangeTOMTop=exportNetworkToVisANT(TOM_orange[top,top],
+                                      file="VisInputOrangeTOMTop.txt",
+                                      weighted=TRUE,
+                                      threshold=0,
+                                      probeToGene=data.frame(geneData$`Gene ID`,geneData$`Gene symbol`))
+
+
+#LIGHTCYAN
+lightcyanModIDs0=read.table("lightcyanModIDs.txt", header=FALSE, sep="\t")
+lightcyanModIDs=lightcyanModIDs0[,1]
+
+colnames(TOM2)=geneData[,3]
+rownames(TOM2)=colnames(TOM2)
+select_lightcyan=colnames(TOM2)%in%lightcyanModIDs
+
+TOM_lightcyan=TOM2[select_lightcyan, select_lightcyan]
+
+#select top expressed genes
+colnames(datExpr)=geneData[,3]
+nTop=20
+IMConn=softConnectivity(datExpr[,colnames(datExpr)%in%lightcyanModIDs])
+top=(rank(-IMConn)<=nTop)
+
+visLightcyanTOMTop=exportNetworkToVisANT(TOM_lightcyan[top,top], 
+                                         file="VisInputLightcyanTOMTop30.txt",
+                                      weighted=TRUE,
+                                      threshold=0,
+                                      probeToGene=data.frame(geneData$`Gene ID`,geneData$`Gene symbol`))
+```
+
+
+

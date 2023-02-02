@@ -1,0 +1,123 @@
+---
+title: "Data cleaning"
+output: html_document
+date: "2022-12-13"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521")
+options(stringAsFactors=FALSE)
+library(limma)
+library(GEOquery)
+
+library(WGCNA)
+library(BiocManager)
+library(dplyr)
+library(plyr)
+library(knitr)
+library(ggplot2)
+library(reshape)
+library(RColorBrewer
+
+```
+
+
+
+Matrices during data cleaning are named as datExpr(n), with n increasing during the cleaning process. Data are already normalized (quantile normalization) and transformed to log2.
+```{r}
+gse28521.data=getGEO(filename="C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521/GSE28521_series_matrix.txt",   getGPL = TRUE, destdir=".", AnnotGPL = TRUE)
+
+
+feature.data=as.data.frame(gse28521.data@featureData@data[,c("ID", "Gene symbol", "Gene ID", "GenBank Accession", "GO:Function", "GO:Process", "GO:Component")])
+phenoData=as.data.frame(gse28521.data@phenoData@data[,c( "disease status:ch1", "tissue (brain region):ch1")])
+colnames(phenoData)=c("Disease status", "Brain region")
+geneData=as.data.frame(cbind(
+  feature.data,
+  gse28521.data@assayData$exprs),
+  row.names=gse28521.data@featureData@data$`Gene symbol`)
+
+geneData=na.omit(geneData)
+
+datExpr0=geneData[,-c(1:7)]#para tener una matriz solo con los valores de expresion.
+#remove genes that are not identified.
+#na.rm=na remove= logial, should NA values be removed from the calculation
+
+sprintf(" %d genes with NA values were removed (%d remaining).", (nrow(gse28521.data@assayData$exprs)-nrow(datExpr0)), nrow(datExpr0))
+
+#remove genes with 0 variance
+datExpr1=datExpr0[apply(datExpr0,1,var)>0,] #margin=1 indicates that in a matrix the function var will be applied to the rows (genes across the samples. for columns, margins=2)
+sprintf("Removing %d genes with 0 variance  (%d remaining).", (nrow(datExpr0)-nrow(datExpr1)), nrow(datExpr1))
+datExpr=t(datExpr1)
+
+
+#CHECK FOR ANY DUPLICATED COLUMNS (OR ROWS, IF NEEDED) 
+#Check for genes with too missing values
+duplcol=duplicated(colnames(datExpr))
+ for(i in 1:length(duplcol)) {
+    if(duplcol[i]=="TRUE")
+      duplcol[i]=1
+    if(duplcol[i]=="FALSE")
+      duplcol[i]=0
+  }
+  
+  
+  if (sum(duplcol)==0)
+    printFlush("THERE ARE NO DUPLICATED GENES");
+               
+  if (sum(duplcol)>0) {
+    printFlush("DUPLICATED GENES ARE:")
+    
+    datExpr<-datExpr[,!duplicated(colnames(datExpr))]
+  }
+  
+
+gsg=goodSamplesGenes(datExpr, verbose=3) #quito las dos primeras columnas de esta operación porque no contienen datos numéricos sino texto
+gsg$allOK #if TRUE = no se han quitado genes?
+
+if (!gsg$allOK)
+        {
+          # Optionally, print the gene and sample names that were removed:
+          if (sum(!gsg$goodGenes)>0)  #all elements different from goodGenes are removed
+            printFlush(paste("Removing genes:", paste(names(datExpr)[!gsg$goodGenes], collapse = ", ")));
+          if (sum(!gsg$goodSamples)>0)
+            printFlush(paste("Removing samples:", paste(rownames(datExpr)[!gsg$goodSamples], collapse = ", ")));
+          # Remove the offending genes and samples from the data:
+          
+          datExpr = datExpr[gsg$goodSamples, gsg$goodGenes]
+          
+          #if (sum(!gsg$goodGenes)==0)
+           # printFlush(paste("No genes have been removed"));
+}
+
+```
+
+
+
+Binarization of phenoData data frame to enable posterior correlation analysis.
+```{r}
+
+outBrain=binarizeCategoricalVariable(phenoData[,2],
+                                     includePairwise = FALSE,
+                                     includeLevelVsAll = TRUE)
+
+outDisease=binarizeCategoricalVariable(phenoData[,1],
+                                       includePairwise = FALSE,
+                                       includeLevelVsAll = TRUE)
+binarized_phenoData=data.frame(phenoData,outDisease,outBrain)
+
+#build correlation heatmap with binarized categorical variables in R according to Peter Langefelder instructions
+
+binarized_phenoData1=binarized_phenoData[,-c(1,2,4)]
+
+```
+
+
+
+
+

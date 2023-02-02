@@ -1,0 +1,327 @@
+---
+title: "DEG analysis with Limma Package and Representation in Volcano Plot, for TEMPORAL and FRONTAL cortex"
+output:
+pdf_document: default
+html_document: default
+date: "2022-12-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(BiocManager)
+library(limma)
+library(WGCNA)
+library(base)
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521")
+load(file="Clean data (allData and datExpr) 14Dic.RData") #created with the code in "data
+#cleaning and normalization"
+datExpr0=t(datExpr) #renombramos como datExpr0 a la matriz con la que vamos a empezar a trabajar. Es la matriz de expresion con los datos NA eliminados, y los nombres de los genes en las filas (matriz limpiada en el cÛdigo de data cleaning + normalization)
+
+```
+
+
+
+We performed a first analysis grouping together all cortex samples, so the DEG analysis was Autistic Cortex vs Control Cortex + Autistic Cerebellum vs Control Cerebellum (no distintction betwen Frontal and Temporal cortex). This analysis was not included in the final report since it was not considered informative enough for the aim of the study.
+
+2A. DEG Analysis - CORTEX AND CEREBELLUM
+```{r}
+experimental.design0=model.matrix((~ 0+factor(c(1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4))))
+colnames(experimental.design0)=c("A_CERE","C_CERE","A_CORTEX","C_CORTEX")
+
+#medias de las r√©plicas 1, 2, 3, 4 (media de las replicas para cada condici√≥n)
+linear.fit <- lmFit(datExpr0, experimental.design0)
+
+#contrast matrix contiene comparaciones , que se calculan como diferencias porq los valores de expresion estan en log2 (expr1/expr2 = log(expr1)-log(expr2))
+contrast.matrix0=makeContrasts(A_CERE-C_CERE,
+                               A_CORTEX-C_CORTEX,
+                               levels=c("A_CERE",
+                                        "C_CERE",
+                                        "A_CORTEX",
+                                        "C_CORTEX"))
+
+#ace un producto matricial y calcula el Fold Change
+contrast.linear.fit <- contrasts.fit(linear.fit, contrast.matrix0)
+#inferencia Bayesiana: hace una t-Student moderada con la funcion eBayes
+contrast.results <- eBayes(contrast.linear.fit)
+
+
+
+A_CEREvsC_CERE <- topTable(contrast.results, number=Inf,coef=1)
+head(A_CEREvsC_CERE)
+
+
+A_CORTEXvsC_CORTEX <- topTable(contrast.results, number=Inf,coef=2)#sort.by="logFC")
+head(A_CORTEXvsC_CORTEX)
+
+
+logFC_CERE= A_CEREvsC_CERE$logFC
+FDR_CERE=A_CEREvsC_CERE$adj.P.Val
+log_FDR_CERE=-log10(FDR_CERE)
+
+logFC_CORTEX=A_CORTEXvsC_CORTEX$logFC
+FDR_CORTEX=A_CORTEXvsC_CORTEX$adj.P.Val
+log_FDR_CORTEX=-log10(FDR_CORTEX)
+```
+
+
+CREATE MATRICES WITH ACTIVATED/REPRESSED GENES AND COMBINE THEM INTO A DEGs MATRIX
+```{r}
+activated_CERE=A_CEREvsC_CERE[which(logFC_CERE>log2(1.3)&FDR_CERE<0.05),]
+head(activated_CERE)
+dim(activated_CERE)
+repressed_CERE=A_CEREvsC_CERE[which(logFC_CERE<(-log2(1.3))&FDR_CERE<0.05),]
+head(repressed_CERE)
+dim(repressed_CERE)
+
+
+activated_CORTEX=A_CORTEXvsC_CORTEX[which(logFC_CORTEX>log2(1.3)&FDR_CORTEX<0.05),]
+head(activated_CORTEX)
+dim(activated_CORTEX)
+repressed_CORTEX=A_CORTEXvsC_CORTEX[which(logFC_CORTEX<(-log2(1.3))&FDR_CORTEX<0.05),]
+dim(repressed_CORTEX)
+head(repressed_CORTEX)
+
+#combinar los DEGs en una sola matriz, que contiene los datos estadÌsticos (logFC, FDR, etc) para los DEGs en CERE y CORTEX (genes que han resultado diferencialmente expresados para un FC><+-1.3 y FDR<0.05). las comparaciones han sido: 1) cerebelo AutismoVsControl y 2) cortex autismoVsControl
+DEGsMatrix_CERE.CORTEX=as.matrix(rbind(activated_CERE,activated_CORTEX,repressed_CERE,repressed_CORTEX))
+head(DEGsMatrix)
+dim(DEGsMatrix)
+
+
+#guardar los DEGs por separado en funciÛn de la zona
+datExpr_activated_CERE=subset(datExpr0,rownames(datExpr0)%in%rownames(activated_CERE))
+datExpr_repressed_CERE=subset(datExpr0,rownames(datExpr0)%in%rownames(repressed_CERE))
+datExpr_activated_CORTEX=subset(datExpr0,rownames(datExpr0)%in%rownames(activated_CORTEX))
+datExpr_repressed_CORTEX=subset(datExpr0,rownames(datExpr0)%in%rownames(repressed_CORTEX))
+```
+
+
+
+
+
+
+2B. DEG ANALYSIS IN FRONTAL AND TEMPORAL CORTEX
+a. A_FRONTvsC_FRONT -> Cortex frontal en autistas vs controles
+b. A_TEMPvsC_TEMP -> Cortex temporal en autistas vs controles
+```{r}
+#col 1-10 A-CERE (10 samples) factor 1
+#col 11-21 C-CERE (11 samples) 2
+#col 22-37 A-FRONT (16 samples) 3
+#col 38-53 C-FRONT (16 samples) 4
+#col 54-66 A-TEMP (13 samples) 5
+#col 67-79 C-TEMP (13 samples) 6
+
+#identificar modelo experimental mediante el vector "factor". yo tengo 6 condiciones (A/C + tejido CERE/FRONT/TEMP)
+
+
+#comparaciones: 1) cortex frontal autismo/control,    2) cortex temporal autismo/control
+experimental.design0=model.matrix((~ 0+factor(c(1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6))))
+colnames(experimental.design0)=c("A_CERE","C_CERE","A_FRONT","C_FRONT","A_TEMP","C_TEMP")
+
+#medias de las r√©plicas 1, 2, 3, 4 (media de las replicas para cada condici√≥n)
+linear.fit <- lmFit(datExpr0, experimental.design0)
+
+#contrast matrix contiene comparaciones , que se calculan como diferencias porq los valores de expresion estan en log2 (expr1/expr2 = log(expr1)-log(expr2))
+contrast.matrix0=makeContrasts(A_FRONT-C_FRONT,
+                               A_TEMP-C_TEMP,                               levels=c("A_CERE","C_CERE","A_FRONT","C_FRONT","A_TEMP","C_TEMP"))
+
+##Calculamos el fold-change y los p-valores correspondientes para cada gen en
+##cada uno de los constrastes especificados utilizando las funciones *constrasts.fit* 
+##y *eBayes*.
+
+#Given a linear model fit to microarray data, compute estimated
+#coefficients and standard errors for a given set of contrasts.
+
+#ace un producto matricial y calcula el Fold Change
+contrast.linear.fit <- contrasts.fit(linear.fit, contrast.matrix0)
+#inferencia Bayesiana: hace una t-Student moderada con la funcion eBayes
+contrast.results <- eBayes(contrast.linear.fit)
+#esta matriz contiene, para cada comparacion, y para cada gen, el FC y el q-valor (FDR). 
+
+
+
+n=nrow(datExpr0) #numero de genes (ya quitados los NA)
+
+A_FRONTvsC_FRONT <- topTable(contrast.results, number=n,coef=1,sort.by="logFC")
+head(A_FRONTvsC_FRONT)
+A_TEMPvsC_TEMP <- topTable(contrast.results, number=n,coef=2,sort.by="logFC")
+head(A_TEMPvsC_TEMP)
+
+logFC_FRONT=A_FRONTvsC_FRONT$logFC
+FDR_FRONT=A_FRONTvsC_FRONT$adj.P.Val
+log_FDR_FRONT=-log10(FDR_FRONT)
+
+logFC_TEMP=A_TEMPvsC_TEMP$logFC
+FDR_TEMP=A_TEMPvsC_TEMP$adj.P.Val
+log_FDR_TEMP=-log10(FDR_TEMP)
+
+
+
+activated_FRONT=A_FRONTvsC_FRONT[which(logFC_FRONT>log2(1.3)&FDR_FRONT<0.05),]
+head(activated_FRONT)
+dim(activated_FRONT)
+repressed_FRONT=A_FRONTvsC_FRONT[which(logFC_FRONT<(-log2(1.3))&FDR_FRONT<0.05),]
+head(repressed_FRONT)
+dim(repressed_FRONT)
+
+activated_TEMP=A_TEMPvsC_TEMP[which(logFC_TEMP>log2(1.3)&FDR_TEMP<0.05),]
+head(activated_TEMP)
+dim(activated_TEMP)
+repressed_TEMP=A_TEMPvsC_TEMP[which(logFC_TEMP<(-log2(1.3))&FDR_TEMP<0.05),]
+dim(repressed_TEMP)
+head(repressed_TEMP)
+
+
+IDs_activated_FRONT=rownames(activated_FRONT)#3
+IDs_activated_TEMP=rownames(activated_TEMP)#26
+IDs_repressed_FRONT=rownames(repressed_FRONT)#5
+IDs_repressed_TEMP=rownames(repressed_TEMP)#79
+
+#esta matriz contiene los datos estadÌsticos (logFC, FDR, etc) para los DEGs en FRONT y TEMP (genes que han resultado diferencialmente expresados para un FC><+-1.3 y FDR<0.05). las comparaciones han sido: 1) cortex frontal AutismoVsControl y 2) cortex temporal autismoVsControl
+DEGsMatrix_TEMP.FRONT=as.matrix(rbind(activated_FRONT,repressed_FRONT,activated_TEMP,repressed_TEMP))
+head(DEGsMatrix_TEMP.FRONT)
+dim(DEGsMatrix_TEMP.FRONT)
+
+#guardar los DEGs por separado en funciÛn de la zona
+datExpr_activated_FRONT=subset(datExpr0,rownames(datExpr0)%in%rownames(activated_FRONT))
+datExpr_repressed_FRONT=subset(datExpr0,rownames(datExpr0)%in%rownames(repressed_FRONT))
+datExpr_activated_TEMP=subset(datExpr0,rownames(datExpr0)%in%rownames(activated_TEMP))
+datExpr_repressed_TEMP=subset(datExpr0,rownames(datExpr0)%in%rownames(repressed_TEMP))
+
+#guardar todos los genes juntos en una matriz
+datExprDEGs_TEMP.FRONT=subset(datExpr0,rownames(datExpr0)%in%rownames(DEGsMatrix_TEMP.FRONT))
+head(datExprDEGs_TEMP.FRONT)
+dim(datExprDEGs_TEMP.FRONT)
+
+```
+
+
+```{r}
+
+datExprDEGs_TEMP=as.matrix(rbind(activated_TEMP,repressed_TEMP))
+DEGsIDs_A_TEMPvsC_TEMP=rownames(datExprDEGs_TEMP)
+length(DEGsIDs_A_TEMPvsC_TEMP)
+
+
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521/final files/3. DEG Analysis")
+save(datExprDEGs_TEMP, file="datExprDEGs_ATEMPvsCTEMP.RData")
+save(DEGsIDs_A_TEMPvsC_TEMP,file="DEGsIDs_A_TEMPvsC_TEMP.txt")
+load("datExprDEGs_ATEMPvsCTEMP.RData")
+```
+setwd("C:/Users/Usuario/Desktop/R/VOINEAGU_GSE28521")
+load(file="DatExpr of DEGs in FRONTAL and TEMPORAL CORTEX, in separate matrices and all together.RData")
+
+
+
+
+2C. GRAPHIC REPRESENTATION OF DEGs - VOLCANO PLOTS
+
+1st. add column of color identifier to the topTable matrices
+```{r}
+
+#aÒadir columna de color
+A_CEREvsC_CERE$color=ifelse(
+  A_CEREvsC_CERE$logFC>(log2(1.3))&
+    A_CEREvsC_CERE$adj.P.Val<0.05,
+  "red",
+  ifelse(A_CEREvsC_CERE$logFC<(-log2(1.3))&A_CEREvsC_CERE$adj.P.Val<0.05,"blue", "grey"))
+
+A_CORTEXvsC_CORTEX$color=ifelse(
+  A_CORTEXvsC_CORTEX$logFC>(log2(1.3))&
+    A_CORTEXvsC_CORTEX$adj.P.Val<0.05,
+  "red",
+  ifelse(A_CORTEXvsC_CORTEX$logFC<(-log2(1.3))&A_CORTEXvsC_CORTEX$adj.P.Val<0.05,"blue", "grey"))
+
+
+
+A_TEMPvsC_TEMP$color=ifelse(
+  A_TEMPvsC_TEMP$logFC>(log2(1.3))&
+    A_TEMPvsC_TEMP$adj.P.Val<0.05,
+  "red",
+  ifelse(A_TEMPvsC_TEMP$logFC<(-log2(1.3))&A_TEMPvsC_TEMP$adj.P.Val<0.05,"blue", "grey"))
+
+A_FRONTvsC_FRONT$color=ifelse(
+  A_FRONTvsC_FRONT$logFC>(log2(1.3))&
+    A_FRONTvsC_FRONT$adj.P.Val<0.05,
+  "red",
+  ifelse(A_FRONTvsC_FRONT$logFC<(-log2(1.3))&A_FRONTvsC_FRONT$adj.P.Val<0.05,"blue", "grey"))
+
+```
+
+
+CERE DEGs REPRESENTATION IN GGPLOT
+```{r}
+p_cere<-ggplot(A_CEREvsC_CERE,
+       aes(x=logFC,
+           y=(-log10(adj.P.Val)),
+           color=color))+
+  coord_cartesian(xlim=c(-2,2),
+                  ylim=c(0,2.5))+
+  geom_point(size=1.5)+
+  scale_x_continuous(name = "log2 fold change") +
+  scale_y_continuous(name = "-log10 (FDR)")+
+ 
+  scale_color_manual(values = c("red" = "red", "blue" = "blue", "grey"="grey"), labels=c("Overexpressed","Underexpressed","Non-DE"))+
+  guides(color=guide_legend(title="Expression Satus"))+
+  ggtitle("DEG selection in CEREBELLUM\n (Autistic vs. Control)") +
+  geom_vline(xintercept=c(log2(1.3),-log2(1.3)),lty="dashed", color=c("red", "blue"))+
+  geom_hline(yintercept=-log10(0.05),color="black",lty="dashed")+
+  theme(legend.key.width = unit(0.1,"cm"),
+        plot.title=element_text(hjust=0.5))
+
+plot(p_cere)
+
+```
+
+
+
+FRONTAL and TEMPORAL CORTEX ANALYSIS (A_TEMP vs C_TEMP, A_FRONT vs C_FRONT)
+
+```{r}
+
+p_temp<-ggplot(A_TEMPvsC_TEMP,
+       aes(x=logFC,
+           y=(-log10(adj.P.Val)),
+           color=color))+
+  coord_cartesian(xlim=c(-2,2), ylim=c(0,2.5))+
+  geom_point(size=1.5)+
+  scale_x_continuous(name = "log2 fold change") +
+  scale_y_continuous(name = "-log10 (FDR)")+
+  
+  scale_color_manual(values = c("red" = "red", "blue" = "blue", "grey"="grey"), labels=c("Overexpressed","Underexpressed","Non-DE"))+
+  guides(color=guide_legend(title="Expression Satus"))+
+  ggtitle("DEG selection in TEMPORAL CORTEX\nTemporal cortex (autism) vs. Temporal cortex (control)") +
+  geom_vline(xintercept=c(log2(1.3),-log2(1.3)),lty="dashed", color=c("red", "blue"))+
+  geom_hline(yintercept=-log10(0.05),color="black",lty="dashed")+
+  theme(legend.key.width = unit(0.1,"cm"),
+        plot.title=element_text(hjust=0.5))
+
+plot(p_temp)
+```
+
+
+volcano plot of FRONT DEGs (Autistic front vs Control front). There is barely any difference. DEG analysis does not reveal relevant different in the frontal cortex expression pattern for autistic people when compared to controls.
+```{r}
+p_front<-ggplot(A_FRONTvsC_FRONT,
+       aes(x=logFC,
+           y=(-log10(adj.P.Val)),
+           color=color))+
+  coord_cartesian(xlim=c(-2,2),
+                  ylim=c(0,2.5))+
+  geom_point(size=1.5)+
+  scale_x_continuous(name = "log2 fold change") +
+  scale_y_continuous(name = "-log10 (FDR)")+
+ 
+  scale_color_manual(values = c("red" = "red", "blue" = "blue", "grey"="grey"), labels=c("Overexpressed","Underexpressed","Non-DE"))+
+  guides(color=guide_legend(title="Expression Satus"))+
+  ggtitle("DEG selection in FRONTAL CORTEX\nFrontal cortex (autism) vs Frontal cortex (control)") +
+  geom_vline(xintercept=c(log2(1.3),-log2(1.3)),lty="dashed", color=c("red", "blue"))+
+  geom_hline(yintercept=-log10(0.05),color="black",lty="dashed")+
+  theme(legend.key.width = unit(0.1,"cm"),
+         plot.title=element_text(hjust=0.5))
+
+plot(p_front)
+```
+
