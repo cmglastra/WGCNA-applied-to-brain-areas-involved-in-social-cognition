@@ -13,12 +13,12 @@ Data were obtained from a previous study by Voineagu et al., publicly available 
 
 * **2.** ***DEG Screening.Rmd***: Differentially Expressed Genes screening using limma package. DE criteria were set at $|Fold Change|>1.3$ and $FDR <0.05$. IDs of DEGs were saved for later analysis, together with their FC and FDR.
 	* **2A.*DEG analysis in Cortex and Cerebellum***: We performed a first analysis grouping together all cortex samples, so the DEG analysis was Autistic Cortex vs Control Cortex + Autistic Cerebellum vs Control Cerebellum (no distincttion between Frontal and Temporal cortex). The Cortex DEG screening analysis was not included in the final report since it was not considered informative enough for the aim of the study, as we aimed to differentiate among Temporal and Frontal cortex expression patterns.
-	* **2B.*DEG analysis in Frontal and Temporal Cortex***: Differentially Expressed Genes screening in Temporal cortex, Frontal cortex and Cerebelum (in all cases, the comparison was Autistic vs. Control). DEGs were plotted in a volcano plot using the *ggplot2* package.
+	* **2B.*DEG analysis in Frontal and Temporal Cortex***: Differentially Expressed Genes screening in Temporal cortex, Frontal cortex and Cerebellum (in all cases, the comparison was Autistic vs. Control). DEGs were plotted in a volcano plot using the *ggplot2* package.
 	* **2C.*Graphic representation of DEGs in volcano plots.***
 
 
 
-* **3.*WGCNA.Rmd: step-by-step module indentification, characterization and visualization***: script containg step-by-step WGCNA. It is divided in several subsections, performing sequential steps of the analysis.
+* **3.*WGCNA.Rmd: step-by-step module identification, characterization and visualization***: script containg step-by-step WGCNA. It is divided in several subsections, performing sequential steps of the analysis.
 	* **3.1.** Sample clustering
 	* **3.2.** Load external data (condition status and brain region) into sample dendrogram
 	* **3.3.** Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
