@@ -39,7 +39,7 @@ SCRIPTS
 			- Darkgreen
 			- Black
 		3.8.c. Plot GO enrichment for DEGs.
-	3.9. Network visulization in VisANT for Orange and Lightcyan. Top 20 connected nodes were selected, with a Topological Overlap Threshold of 0.1
+	3.9. Network visualization in VisANT for Orange and Lightcyan. Top 20 connected nodes were selected, with a Topological Overlap Threshold of 0.1
 
 
 	
