@@ -1,6 +1,6 @@
 TFG_Carmen Martinez
 
-This repository contains all the scripts and data that were used during the development of a Weighted Gene Co-expression Network Analysis on brain-expressed genes. This study was the main topic of a Bachelor’s thesis (TFG) in Biotechnology by the student Carmen Martínez.
+This repository contains the scripts and data that were used during the development of a Weighted Gene Co-expression Network Analysis on brain-expressed genes. This study was the main topic of a Bachelor’s thesis (TFG) in Biotechnology by the student Carmen Martínez.
 The analysis was supported by reference materials on WGCNA created by Zhang, Langfelder and Horvath.
 
 DATA
