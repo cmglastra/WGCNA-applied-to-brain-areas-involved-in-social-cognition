@@ -1,6 +1,6 @@
 TFG_Carmen Martinez
  
- 1. DATA PRE-PROCESSING AND BINARIZATION OF TRAIT DATA FRAME: pre-processing of data set included removal of non-identified genes (no Gene ID assigned to the ILM probe); removal of duplicated genes or samples (no duplications found), and of genes whose expression values showed no variance across samples. Binarization of phenotypical traits (autistic/control and brain region) allowed for posterior correlation analysis. Condition status was assigned values 1 for autism and 0 for controls. In the case of brain regions, comparisons in the form of XvsAll were performed, where X (region of interest in that comparison) was assigned 1, while the remaining regions were assigned 0.
+ 1. Data pre-processing and binarization of phenotypical data: pre-processing of data set included removal of non-identified genes (no Gene ID assigned to the ILM probe); removal of duplicated genes or samples (no duplications found), and of genes whose expression values showed no variance across samples. Binarization of phenotypical traits (autistic/control and brain region) allowed for posterior correlation analysis. Condition status was assigned values 1 for autism and 0 for controls. In the case of brain regions, comparisons in the form of XvsAll were performed, where X (region of interest in that comparison) was assigned 1, while the remaining regions were assigned 0.
     1b. phenoData_binariez contains the matrices derived from this piece of code (one of the data frames includes text labels for each sample; the other doesn't, and is therefore used for thecorrelation analysis that will follow)
 
 2. DEG Screening.Rmd: Differentially Expressed Genes screening using limma package. DE criteria were set at |Fold Chage|>1.3 and FDR <0.05. IDs of DEGs were saved for later analysis, together with their FC and FDR.
@@ -9,7 +9,7 @@ TFG_Carmen Martinez
 	2C. Graphic representation of DEGs in volcano plots.
 
 
-3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization
+3. WGCNA.Rmd: step-by-step module indentification, characterization and visualization
 
 	3.1. Sample clustering
 	3.2. Load external data (condition status and brain region) into sample dendrogram
