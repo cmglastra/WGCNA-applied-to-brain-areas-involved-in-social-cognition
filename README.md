@@ -18,8 +18,7 @@ SCRIPTS
 
 
 
-3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization
-   3.1. Sammple clustering
+3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization                                                                                      3.1. Sammple clustering
    3.2. Load external data (condition status and brain region) into sample dendrogram
    3.3. Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
 	3.4. Module construction
