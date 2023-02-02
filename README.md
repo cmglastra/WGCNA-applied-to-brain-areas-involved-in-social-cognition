@@ -17,9 +17,14 @@ SCRIPTS
 	2C. Graphic representation of DEGs in volcano plots.
 
 
-3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization
 
-	3.1. Sample clustering
+ Markup : 1. A numbered list
+              1. A nested numbered list
+              2. Which is numbered
+          2. Which is numbered
+
+3. WGCNA.Rmd: step-by-step module indentification, characterization and visulization
+4. 	3.1. Sammple clustering
 	3.2. Load external data (condition status and brain region) into sample dendrogram
 	3.3. Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
 	3.4. Module construction
