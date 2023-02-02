@@ -20,8 +20,8 @@ Data were obtained from a previous study by Voineagu et al., publicly available 
 
 * **3.*WGCNA.Rmd***: step-by-step module identification, characterization and visualization. This script is divided in several subsections, performing sequential steps of the analysis.
 	* **3.1.** Sample clustering
-	* **3.2.** Load external data (condition status and brain region) into sample dendrogram
-	* **3.3.** Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
+	* **3.2.** Loading of external data (condition status and brain region) into sample dendrogram
+	* **3.3.** Soft thresholding parameter selection according to connectivity and R2 scale-free topology fit.
 	* **3.4.** Module construction
 		* **3.4.1.** Adjacency, TOM and dissTOM calculation from datExpr.
 		* **3.4.2.** Module definition by gene hierarchical clustering + Dynamic tree cut and close module merging according to Module Eigengene dissimilarity
