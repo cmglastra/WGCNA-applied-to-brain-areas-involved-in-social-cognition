@@ -5,7 +5,7 @@ The analysis was supported by reference materials on WGCNA created by Zhang, Lan
 
 DATA
 Clean data (allData and datExpr).RData: data file containing gene expression data (datExpr), already pre-processed, and extra gene data (gene symbol, ILMN probe ID, GeneBank Accession Number, GO terms, etc) phenoData_binarized.RData: contains data frames of binarized traits for posterior analysis, both annotated with text labels (binarized_phenoData1) and without text (binarized_phenoData).
-Data were obtained from a previous study by Voineagu et al., publicly available at the Gene Expression Omnibus database under the series GSE28521
+Data were obtained from a previous study by Voineagu et al., publicly available at the Gene Expression Omnibus database under the [series GSE28521](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE28521)
 
 SCRIPTS
 1. Data pre-processing and binarization of trait data frame.Rmd: pre-processing of data set. This included removal of non-identified genes (no Gene ID assigned to the ILM probe); removal of duplicated genes or samples (no duplications found), and of genes whose expression values showed no variance across samples. Binarization of phenotypical traits (autistic/control and brain region) allowed for posterior correlation analysis. Condition status was assigned values 1 for autism and 0 for controls. In the case of brain regions, comparisons in the form of XvsAll were performed, where X (region of interest in that comparison) was assigned 1, while the remaining regions were assigned 0.
