@@ -18,7 +18,7 @@ Data were obtained from a previous study by Voineagu et al., publicly available 
 
 
 
-* **3.*WGCNA.Rmd: step-by-step module identification, characterization and visualization***: script containg step-by-step WGCNA. It is divided in several subsections, performing sequential steps of the analysis.
+* **3.*WGCNA.Rmd***: step-by-step module identification, characterization and visualization. This script is divided in several subsections, performing sequential steps of the analysis.
 	* **3.1.** Sample clustering
 	* **3.2.** Load external data (condition status and brain region) into sample dendrogram
 	* **3.3.** Soft thresholding parameter selection accordin to connectivity and R2 scale-free topology fit.
