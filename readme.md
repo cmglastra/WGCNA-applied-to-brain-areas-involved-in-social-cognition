@@ -1,6 +1,6 @@
 # TFG_Carmen Martinez
 
-This repository contains the scripts and data that were used during the development of a Weighted Gene Co-expression Network Analysis (WGCNA) on brain-expressed genes. This study was the main topic of a Bachelor’s thesis (TFG) in Biotechnology by the student Carmen Martínez.
+This repository contains the scripts and data that were used during the development of a Weighted Gene Co-expression Network Analysis (WGCNA) on brain-expressed genes. This study was the main topic of a Bachelor’s thesis (TFG) in Biotechnology at the Technical University of Madrid (Universidad Politécnica de Madrid) by the student Carmen Martínez.
 The analysis was supported by reference materials on WGCNA created by Zhang, Langfelder and Horvath. All of it was conducted in R, and mostly based in the WGCNA package, together with packages GEOquery, limma and ggplot2.
 
 ## DATA
